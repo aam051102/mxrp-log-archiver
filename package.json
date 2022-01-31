@@ -1,0 +1,28 @@
+{
+    "name": "mxrp-log-archiver",
+    "version": "1.0.0",
+    "description": "An app which downloads and builds pages of old MXRP group chats",
+    "main": "index.js",
+    "scripts": {
+        "start:builder": "node build.js",
+        "start:collector": "node collect.js",
+        "build": "npm run build:builder && npm run build:collector",
+        "build:builder": "pkg --compress GZip build.js --out-path dist",
+        "build:collector": "pkg --compress GZip collect.js --out-path dist"
+    },
+    "keywords": [],
+    "author": "MadCreativity",
+    "license": "ISC",
+    "dependencies": {
+        "cheerio": "^1.0.0-rc.10",
+        "clean-css": "^5.1.3",
+        "dialog": "^0.3.1",
+        "electron-squirrel-startup": "^1.0.0",
+        "html-minifier": "^4.0.0",
+        "node-fetch": "^2.6.1",
+        "uglify-js": "^3.13.10"
+    },
+    "devDependencies": {
+        "pkg": "^5.3.1"
+    }
+}
