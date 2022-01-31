@@ -7,24 +7,20 @@ const UglifyJS = require("uglify-js");
 
 const parseBBCode = require("./bbcode");
 
-// Copy JavaScript and CSS
-const copyJavaScriptAndCSS = () => {
+const copyScript = () => {
     const templateScript = fs
         .readFileSync(path.join(__dirname, "./template/script.js"))
         .toString();
+
+    return UglifyJS.minify({ "script.js": templateScript }, {}).code;
+};
+
+const copyStyle = () => {
     const templateStyle = fs
         .readFileSync(path.join(__dirname, "./template/style.css"))
         .toString();
 
-    fs.writeFileSync(
-        "./out/script.js",
-        UglifyJS.minify({ "script.js": templateScript }, {}).code
-    );
-
-    fs.writeFileSync(
-        "./out/style.css",
-        new CleanCSS({}).minify(templateStyle).styles
-    );
+    return new CleanCSS({}).minify(templateStyle).styles;
 };
 
 // Convert HTML
@@ -41,8 +37,6 @@ if (!fs.existsSync("./convos")) {
 }
 
 fs.mkdirSync("./out", { recursive: true });
-
-copyJavaScriptAndCSS();
 
 const templateHTML = fs
     .readFileSync(path.join(__dirname, "./template/index.html"))
@@ -94,6 +88,9 @@ fs.readdirSync("./convos").forEach(function (file) {
 
     newHTML(".log_top_nav .pager").html(pagerLinks);
     newHTML(".log_bottom_nav .pager").html(pagerLinks);
+
+    newHTML("body").append(`<script>${copyScript()}</script>`);
+    newHTML("head").append(`<style>${copyStyle()}</style>`);
 
     fs.writeFileSync(
         `./out/${path.basename(file, path.extname(file))}.html`,
