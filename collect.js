@@ -74,20 +74,24 @@ const fetchGroupData = async (url) => {
         return;
     }
 
-    fs.mkdirSync("./convos", { recursive: true });
+    fs.mkdirSync("./chats", { recursive: true });
+    fs.mkdirSync("./groups", { recursive: true });
 
     const input = JSON.parse(fs.readFileSync("./input.json").toString());
 
     // Chats
     const chats = input.chats;
     for (let i = 0; i < chats.length; i++) {
-        if (!fs.existsSync(`./convos/${chats[i].id}.txt`)) {
+        if (!fs.existsSync(`./chats/${chats[i].id}.json`)) {
             const data = await fetchChatData(
                 `https://mxrp.chat/${chats[i].id}/log`,
                 chats[i].pages
             );
             if (data.length > 0) {
-                fs.writeFileSync(`./convos/${chats[i].id}.txt`, data.join(""));
+                fs.writeFileSync(
+                    `./chats/${chats[i].id}.json`,
+                    JSON.stringify(data)
+                );
             }
         }
     }
@@ -95,12 +99,12 @@ const fetchGroupData = async (url) => {
     // Groups
     const groups = input.groups;
     for (let i = 0; i < groups.length; i++) {
-        if (!fs.existsSync(`./convos/${groups[i]}.txt`)) {
+        if (!fs.existsSync(`./groups/${groups[i]}.json`)) {
             const data = await fetchGroupData(
                 `https://mxrp.chat/${groups[i]}/log`
             );
             if (data.length > 0) {
-                fs.writeFileSync(`./convos/${groups[i]}.txt`, data.join(""));
+                fs.writeFileSync(`./groups/${groups[i]}.json`, data.join(""));
             }
         }
     }

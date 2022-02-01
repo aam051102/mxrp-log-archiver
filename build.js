@@ -23,94 +23,164 @@ const copyStyle = () => {
     return new CleanCSS({}).minify(templateStyle).styles;
 };
 
-// Convert HTML
-if (!fs.existsSync("./convos")) {
-    console.error(
-        "MXRP Builder",
-        'Folder "convos" does not exist. Please execute MXRP Collector first.'
-    );
-
-    process.stdin.once("data", function () {
-        process.exit(1);
-    });
-    return;
-}
-
 fs.mkdirSync("./out", { recursive: true });
 
 const templateHTML = fs
     .readFileSync(path.join(__dirname, "./template/index.html"))
     .toString();
-fs.readdirSync("./convos").forEach(function (file) {
-    console.log(`Started converting ${file}`);
 
-    let data = parseBBCode(
-        minify(fs.readFileSync(`./convos/${file}`).toString(), {
-            removeTagWhitespace: false,
-            collapseInlineTagWhitespace: false,
-            collapseWhitespace: true,
-        })
-    );
-
-    // Reverse dates
-    const match = /<h2(?:(?!<h2).|\n)*/g;
-    let dataReversed = "";
-    let res;
-    while ((res = match.exec(data))) {
-        dataReversed = res[0] + dataReversed;
+try {
+    // Groups
+    if (!fs.existsSync("./groups")) {
+        process.stdin.once("data", function () {
+            process.exit(1);
+        });
+        throw new Error(
+            'Folder "groups" does not exist. Please execute MXRP Collector first.'
+        );
     }
-    data = dataReversed;
 
-    const dataHTML = cheerio.load(data);
-    const newHTML = cheerio.load(templateHTML);
-    const contents = dataHTML("body").children();
+    fs.readdirSync("./groups").forEach(function (file) {
+        console.log(`Started converting ${file}`);
 
-    // Navigation links
-    const pageAmount = Math.ceil(contents.length / 200);
+        let data = parseBBCode(
+            minify(fs.readFileSync(`./groups/${file}`).toString(), {
+                removeTagWhitespace: false,
+                collapseInlineTagWhitespace: false,
+                collapseWhitespace: true,
+            })
+        );
 
-    let pagerLinks = "";
-    for (let i = 1; i <= pageAmount; i++) {
-        pagerLinks += `<a href="?p=${i}">${i}</a>`;
+        // Reverse dates
+        const match = /<h2(?:(?!<h2).|\n)*/g;
+        let dataReversed = "";
+        let res;
+        while ((res = match.exec(data))) {
+            dataReversed = res[0] + dataReversed;
+        }
+        data = dataReversed;
 
-        const el = cheerio.load(`<section id="page${i}"></section>`);
-        const page = el(`#page${i}`);
+        const dataHTML = cheerio.load(data);
+        const newHTML = cheerio.load(templateHTML);
+        const contents = dataHTML("body").children();
 
-        const start = (i - 1) * 200;
-        let end = start + (contents.length - start);
-        if (end - start > 200) end = start + 200;
+        // Navigation links
+        const pageAmount = Math.ceil(contents.length / 200);
 
-        for (let j = start; j < end; j++) {
-            page.append(dataHTML.html(contents[j]));
+        let pagerLinks = "";
+        for (let i = 1; i <= pageAmount; i++) {
+            pagerLinks += `<a href="?p=${i}">${i}</a>`;
+
+            const el = cheerio.load(`<section id="page${i}"></section>`);
+            const page = el(`#page${i}`);
+
+            const start = (i - 1) * 200;
+            let end = start + (contents.length - start);
+            if (end - start > 200) end = start + 200;
+
+            for (let j = start; j < end; j++) {
+                page.append(dataHTML.html(contents[j]));
+            }
+
+            newHTML("#conversation_wrap").append(page);
         }
 
-        newHTML("#conversation_wrap").append(page);
+        newHTML(".log_top_nav .pager").html(pagerLinks);
+        newHTML(".log_bottom_nav .pager").html(pagerLinks);
+
+        newHTML("body").append(`<script>${copyScript()}</script>`);
+        newHTML("head").append(`<style>${copyStyle()}</style>`);
+
+        fs.writeFileSync(
+            `./out/${path.basename(file, path.extname(file))}.html`,
+            minify(newHTML.html(), {
+                removeTagWhitespace: false,
+                collapseInlineTagWhitespace: false,
+                collapseWhitespace: true,
+                collapseBooleanAttributes: true,
+                removeComments: true,
+                minifyCSS: true,
+                minifyJS: true,
+                minifyURLs: true,
+            })
+        );
+    });
+
+    // Chats
+    if (!fs.existsSync("./chats")) {
+        process.stdin.once("data", function () {
+            process.exit(1);
+        });
+        throw new Error(
+            'Folder "chats" does not exist. Please execute MXRP Collector first.'
+        );
     }
 
-    newHTML(".log_top_nav .pager").html(pagerLinks);
-    newHTML(".log_bottom_nav .pager").html(pagerLinks);
+    fs.readdirSync("./chats").forEach(function (file) {
+        console.log(`Started converting ${file}`);
 
-    newHTML("body").append(`<script>${copyScript()}</script>`);
-    newHTML("head").append(`<style>${copyStyle()}</style>`);
+        const newHTML = cheerio.load(templateHTML);
+        const fileData = JSON.parse(
+            fs.readFileSync(`./chats/${file}`).toString()
+        );
 
-    fs.writeFileSync(
-        `./out/${path.basename(file, path.extname(file))}.html`,
-        minify(newHTML.html(), {
-            removeTagWhitespace: false,
-            collapseInlineTagWhitespace: false,
-            collapseWhitespace: true,
-            collapseBooleanAttributes: true,
-            removeComments: true,
-            minifyCSS: true,
-            minifyJS: true,
-            minifyURLs: true,
-        })
+        fileData.forEach((raw, pageNumber) => {
+            let data = parseBBCode(
+                minify(raw, {
+                    removeTagWhitespace: false,
+                    collapseInlineTagWhitespace: false,
+                    collapseWhitespace: true,
+                })
+            );
+
+            const dataHTML = cheerio.load(data);
+            const contents = dataHTML("body").children();
+
+            const el = cheerio.load(
+                `<section id="page${fileData.length - pageNumber}"></section>`
+            );
+            const page = el(`#page${fileData.length - pageNumber}`);
+
+            page.append(dataHTML.html(contents));
+
+            newHTML("#conversation_wrap").append(page);
+        });
+
+        // Navigation links
+        let pagerLinks = "";
+        for (let i = 1; i <= fileData.length; i++) {
+            pagerLinks += `<a href="?p=${i}">${i}</a>`;
+        }
+
+        newHTML(".log_top_nav .pager").html(pagerLinks);
+        newHTML(".log_bottom_nav .pager").html(pagerLinks);
+
+        newHTML("body").append(`<script>${copyScript()}</script>`);
+        newHTML("head").append(`<style>${copyStyle()}</style>`);
+
+        fs.writeFileSync(
+            `./out/${path.basename(file, path.extname(file))}.html`,
+            minify(newHTML.html(), {
+                removeTagWhitespace: false,
+                collapseInlineTagWhitespace: false,
+                collapseWhitespace: true,
+                collapseBooleanAttributes: true,
+                removeComments: true,
+                minifyCSS: true,
+                minifyJS: true,
+                minifyURLs: true,
+            })
+        );
+    });
+
+    console.log(
+        "MXRP Builder",
+        'Successfully ran MXRP Builder. Check the "out" directory for the generated pages.'
     );
-});
-
-console.log(
-    "MXRP Builder",
-    'Successfully ran MXRP Builder. Check the "out" directory for the generated pages.'
-);
+} catch (e) {
+    console.error(e);
+    fs.writeFileSync(`./log-${new Date().getTime()}.txt`, e);
+}
 
 process.stdin.once("data", function () {
     process.exit(0);
