@@ -17,8 +17,8 @@ const fetchChatData = async (url, pages) => {
 
                 const convoWrapper = readData("#conversation_wrap");
                 if (!convoWrapper.length) {
-                    console.error(`Failed to fetch: ${url}`);
-                    fails.push(url);
+                    console.error(`Failed to fetch: ${url}/${i}`);
+                    fails.push(`${url}/${i}`);
                     return [];
                 }
 
