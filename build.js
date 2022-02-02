@@ -172,7 +172,7 @@ try {
 
             const contents = dataHTML("body").children();
 
-            for (let i = 1; i <= contents.length; i++) {
+            for (let i = 0; i < contents.length; i++) {
                 page.append(bbencode(dataHTML.html(contents.get(i))));
             }
 

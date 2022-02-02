@@ -1,5 +1,3 @@
-var $ = require("jquery");
-
 // BBCode
 var tag_properties = {
     bgcolor: "background-color",
@@ -34,35 +32,38 @@ function raw_bbencode(text, admin) {
                     .replace(/&amp;/g, "&")
                     .replace(/&quot;/g, '"')
                     .replace(/&#x27;/g, "'"); // re-escape to work with links
-                return (
-                    $("<a>")
-                        .attr({
-                            href: "/redirect?url=" + encodeURIComponent(url),
-                            target: "_blank",
-                        })
-                        .text(url)[0].outerHTML + suffix
-                );
+                return `<a href="/redirect?url=${encodeURIComponent(
+                    url
+                )}" target="_blank">${url}</a>${suffix}`;
             }
             tag = tag.toLowerCase();
             if (attribute) {
                 switch (tag) {
                     case "bgcolor":
                     case "color":
-                        return $("<span>")
-                            .css(tag_properties[tag], attribute)
-                            .html(raw_bbencode(content, admin))[0].outerHTML;
+                        return `<span style="${
+                            tag_properties[tag]
+                        }: ${attribute}">${raw_bbencode(
+                            content,
+                            admin
+                        )}</span>`;
                     case "font":
                         // Gotta quote the font name so fonts starting with numbers work.
-                        return $("<span>")
-                            .css(tag_properties[tag], "'" + attribute + "'")
-                            .html(raw_bbencode(content, admin))[0].outerHTML;
+                        return `<span style="${
+                            tag_properties[tag]
+                        }: '${attribute}'">${raw_bbencode(
+                            content,
+                            admin
+                        )}</span>`;
                     case "bshadow":
                     case "tshadow":
                         return admin
-                            ? $("<span>")
-                                  .css(tag_properties[tag], attribute)
-                                  .html(raw_bbencode(content, admin))[0]
-                                  .outerHTML
+                            ? `<span style="${
+                                  tag_properties[tag]
+                              }: ${attribute}">${raw_bbencode(
+                                  content,
+                                  admin
+                              )}</span>`
                             : raw_bbencode(content, admin);
                     case "url":
                         if (
@@ -73,15 +74,12 @@ function raw_bbencode(text, admin) {
                                 .replace(/&amp;/g, "&")
                                 .replace(/&quot;/g, '"')
                                 .replace(/&#x27;/g, "'"); // re-escape to work with links
-                            return $("<a>")
-                                .attr({
-                                    href:
-                                        "/redirect?url=" +
-                                        encodeURIComponent(attribute),
-                                    target: "_blank",
-                                })
-                                .html(raw_bbencode(content, admin))[0]
-                                .outerHTML;
+                            return `<a href="/redirect?url=${encodeURIComponent(
+                                attribute
+                            )}" target="_blank">${raw_bbencode(
+                                content,
+                                admin
+                            )}</a>`;
                         }
                         break;
                 }
