@@ -5,7 +5,7 @@ const { minify } = require("html-minifier");
 const CleanCSS = require("clean-css");
 const UglifyJS = require("uglify-js");
 
-const parseBBCode = require("./bbcode");
+const bbencode = require("./bbcode");
 
 const copyScript = () => {
     const templateScript = fs
@@ -43,13 +43,11 @@ try {
     fs.readdirSync("./groups").forEach(function (file) {
         console.log(`Started converting ${file}`);
 
-        let data = parseBBCode(
-            minify(fs.readFileSync(`./groups/${file}`).toString(), {
-                removeTagWhitespace: false,
-                collapseInlineTagWhitespace: false,
-                collapseWhitespace: true,
-            })
-        );
+        let data = minify(fs.readFileSync(`./groups/${file}`).toString(), {
+            removeTagWhitespace: false,
+            collapseInlineTagWhitespace: false,
+            collapseWhitespace: true,
+        });
 
         // Reverse dates
         const match = /<h2(?:(?!<h2).|\n)*/g;
@@ -64,25 +62,10 @@ try {
         const newHTML = cheerio.load(templateHTML);
         const contents = dataHTML("body").children();
 
-        // Navigation links
         const pageAmount = Math.ceil(contents.length / 200);
-
         let pagerLinks = "";
         for (let i = 1; i <= pageAmount; i++) {
             pagerLinks += `<a href="?p=${i}">${i}</a>`;
-
-            const el = cheerio.load(`<section id="page${i}"></section>`);
-            const page = el(`#page${i}`);
-
-            const start = (i - 1) * 200;
-            let end = start + (contents.length - start);
-            if (end - start > 200) end = start + 200;
-
-            for (let j = start; j < end; j++) {
-                page.append(dataHTML.html(contents[j]));
-            }
-
-            newHTML("#conversation_wrap").append(page);
         }
 
         newHTML(".log_top_nav .pager").html(pagerLinks);
@@ -91,9 +74,35 @@ try {
         newHTML("body").append(`<script>${copyScript()}</script>`);
         newHTML("head").append(`<style>${copyStyle()}</style>`);
 
+        const stringHTML = newHTML.html();
+        let freeHTML = stringHTML.substring(
+            0,
+            stringHTML.indexOf('<div id="conversation_wrap">') +
+                '<div id="conversation_wrap">'.length
+        );
+        const endFreeHTML = stringHTML.substring(
+            stringHTML.indexOf('<div id="conversation_wrap">') +
+                '<div id="conversation_wrap">'.length
+        );
+
+        for (let i = 1; i <= pageAmount; i++) {
+            const el = cheerio.load(`<section id="page${i}"></section>`);
+            const page = el(`#page${i}`);
+
+            const start = (i - 1) * 200;
+            let end = start + (contents.length - start);
+            if (end - start > 200) end = start + 200;
+
+            for (let j = start; j < end; j++) {
+                page.append(bbencode(dataHTML.html(contents.get(j))));
+            }
+
+            freeHTML += el("body").html();
+        }
+
         fs.writeFileSync(
             `./out/${path.basename(file, path.extname(file))}.html`,
-            minify(newHTML.html(), {
+            minify(freeHTML + endFreeHTML, {
                 removeTagWhitespace: false,
                 collapseInlineTagWhitespace: false,
                 collapseWhitespace: true,
@@ -148,25 +157,26 @@ try {
         );
 
         fileData.forEach((raw, pageNumber) => {
-            let data = parseBBCode(
-                minify(raw, {
-                    removeTagWhitespace: false,
-                    collapseInlineTagWhitespace: false,
-                    collapseWhitespace: true,
-                })
-            );
+            let data = minify(raw, {
+                removeTagWhitespace: false,
+                collapseInlineTagWhitespace: false,
+                collapseWhitespace: true,
+            });
 
             const dataHTML = cheerio.load(data);
-            const contents = dataHTML("body").children();
 
             const el = cheerio.load(
                 `<section id="page${fileData.length - pageNumber}"></section>`
             );
             const page = el(`#page${fileData.length - pageNumber}`);
 
-            page.append(dataHTML.html(contents));
+            const contents = dataHTML("body").children();
 
-            freeHTML += el.html();
+            for (let i = 1; i <= contents.length; i++) {
+                page.append(bbencode(dataHTML.html(contents.get(i))));
+            }
+
+            freeHTML += el("body").html();
         });
 
         fs.writeFileSync(

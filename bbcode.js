@@ -1,91 +1,148 @@
-/**
- * This array contains the main static bbcode
- */
-const bbcode = [
-    "\\[br]",
-    "\\[b](.+?)\\[/b]",
-    "\\[i](.+?)\\[/i]",
-    "\\[u](.+?)\\[/u]",
-    "\\[s](.+?)\\[/s]",
-    "\\[ul](.+?)\\[/ul]",
-    "\\[li](.+?)\\[/li]",
-    "\\[ol](.+?)\\[/ol]",
-    "\\[center](.+?)\\[/center]",
-    "\\[left](.+?)\\[/left]",
-    "\\[right](.+?)\\[/right]",
-    "\\[sub](.+?)\\[/sub]",
-    "\\[sup](.+?)\\[/sup]",
+var $ = require("jquery");
 
-    "\\[bgcolor=([a-zA-Z]*|#?[0-9a-fA-F]{6})](.+?)\\[\\/bgcolor]",
-    "\\[color=([a-zA-Z]*|#?[0-9a-fA-F]{6})](.+?)\\[\\/color]",
-    "\\[size=([0-9][0-9]?)](.+?)\\[/size]",
-    "\\[quote](\r\n)?(.+?)\\[/quote]",
-    "\\[quote=(.*?)](\r\n)?(.+?)\\[/quote]",
-    "\\[url](.+?)\\[/url]",
-    "\\[url=(.+?)](.+?)\\[\\/url]",
-    "\\[email]([w.-]+@[a-zA-Z0-9-]+.?[a-zA-Z0-9-]*.w{1,4})\\[/email]",
-    "\\[email=([w.-]+@[a-zA-Z0-9-]+.?[a-zA-Z0-9-]*.w{1,4})](.+)\\[/email]",
-    "\\[img](.+?)\\[/img]",
-    "\\[img=(.+?)](.+?)\\[/img]",
-    "\\[code](\r\n)?(.+?)(\r\n)?\\[/code]",
-    "\\[youtube]http://[a-z]{0,3}.youtube.com/watch?v=([0-9a-zA-Z]{1,11})\\[/youtube]",
-    "\\[youtube]([0-9a-zA-Z]{1,11})\\[/youtube]",
-];
-
-for (let i = 0; i < bbcode.length; i++) {
-    bbcode[i] = new RegExp(bbcode[i], "gi");
+// BBCode
+var tag_properties = {
+    bgcolor: "background-color",
+    color: "color",
+    font: "font-family",
+    bshadow: "box-shadow",
+    tshadow: "text-shadow",
+};
+function bbencode(text, admin) {
+    return raw_bbencode(text, admin);
 }
-
-/**
- * This array contains the main static bbcode's html
- */
-const html = [
-    "<br>",
-    "<b>$1</b>",
-    "<i>$1</i>",
-    "<u>$1</u>",
-    "<s>$1</s>",
-    "<ul>$1</ul>",
-    "<li>$1</li>",
-    "<ol>$1</ol>",
-    '<div style="text-align: center;">$1</div>',
-    '<div style="text-align: left;">$1</div>',
-    '<div style="text-align: right;">$1</div>',
-    "<sub>$1</sub>",
-    "<sup>$1</sup>",
-
-    '<span style="background-color: $1">$2</span>',
-    '<span style="color: $1">$2</span>',
-    '<span style="font-size: $1px">$2</span>',
-    '<div class="quote"><span class="quoteby">Disse:</span>\r\n$2</div>',
-    '<div class="quote"><span class="quoteby">Disse <b>$1</b>:</span>\r\n$3</div>',
-    '<a rel="nofollow" target="_blank" href="$1">$1</a>',
-    '<a rel="nofollow" target="_blank" href="$1">$2</a>',
-    '<a href="mailto: $1">$1</a>',
-    '<a href="mailto: $1">$2</a>',
-    '<img src="$1" alt="$1" />',
-    '<img src="$1" alt="$2" />',
-    '<div class="code">$2</div>',
-    '<object type="application/x-shockwave-flash" style="width: 450px; height: 366px;" data="http://www.youtube.com/v/$1"><param name="movie" value="http://www.youtube.com/v/$1" /><param name="wmode" value="transparent" /></object>',
-    '<object type="application/x-shockwave-flash" style="width: 450px; height: 366px;" data="http://www.youtube.com/v/$1"><param name="movie" value="http://www.youtube.com/v/$1" /><param name="wmode" value="transparent" /></object>',
-];
-
-/**
- * This function parses BBcode tag to HTML code (XHTML transitional 1.0)
- *
- * It parses (only if it is in valid format e.g. an email must to be
- * as example@example.ext or similar) the text with BBcode and
- * translates in the relative html code.
- *
- * @param string text
- * @returns string
- */
-function parseBBCode(text) {
-    for (let i = 0; i < bbcode.length; i++) {
-        text = text.replace(bbcode[i], html[i]);
+function raw_bbencode(text, admin) {
+    // convert BBCode inside [raw] to html escapes to prevent stacking problems and make it show with BBcode disabled
+    var re = /\[raw\]([\s\S]*?)\[([\s\S]*?)\]([\s\S]*?)\[\/raw\]/gi;
+    while (re.exec(text)) {
+        text = text.replace(re, "[raw]$1&#91;$2&#93;$3[/raw]");
     }
+    text = text.replace(/(\[[bB][rR]\])+/g, "<br>");
 
-    return text;
+    // Just outright make this match case insensitive so we don't have to worry about tags matching in casing on the \2 callback
+    return text.replace(
+        /(https?:\/\/\S+)|\[([A-Za-z]+)(?:=([^\]]+))?\]([\s\S]*?)\[\/\2\]/gi,
+        function (str, url, tag, attribute, content) {
+            if (url) {
+                var suffix = "";
+                // Exclude a trailing closing bracket if there isn't an opening bracket.
+                if (url[url.length - 1] == ")" && url.indexOf("(") == -1) {
+                    url = url.substr(0, url.length - 1);
+                    suffix = ")";
+                }
+                url = url
+                    .replace(/&amp;/g, "&")
+                    .replace(/&quot;/g, '"')
+                    .replace(/&#x27;/g, "'"); // re-escape to work with links
+                return (
+                    $("<a>")
+                        .attr({
+                            href: "/redirect?url=" + encodeURIComponent(url),
+                            target: "_blank",
+                        })
+                        .text(url)[0].outerHTML + suffix
+                );
+            }
+            tag = tag.toLowerCase();
+            if (attribute) {
+                switch (tag) {
+                    case "bgcolor":
+                    case "color":
+                        return $("<span>")
+                            .css(tag_properties[tag], attribute)
+                            .html(raw_bbencode(content, admin))[0].outerHTML;
+                    case "font":
+                        // Gotta quote the font name so fonts starting with numbers work.
+                        return $("<span>")
+                            .css(tag_properties[tag], "'" + attribute + "'")
+                            .html(raw_bbencode(content, admin))[0].outerHTML;
+                    case "bshadow":
+                    case "tshadow":
+                        return admin
+                            ? $("<span>")
+                                  .css(tag_properties[tag], attribute)
+                                  .html(raw_bbencode(content, admin))[0]
+                                  .outerHTML
+                            : raw_bbencode(content, admin);
+                    case "url":
+                        if (
+                            attribute.substr(0, 7) == "http://" ||
+                            attribute.substr(0, 8) == "https://"
+                        ) {
+                            attribute = attribute
+                                .replace(/&amp;/g, "&")
+                                .replace(/&quot;/g, '"')
+                                .replace(/&#x27;/g, "'"); // re-escape to work with links
+                            return $("<a>")
+                                .attr({
+                                    href:
+                                        "/redirect?url=" +
+                                        encodeURIComponent(attribute),
+                                    target: "_blank",
+                                })
+                                .html(raw_bbencode(content, admin))[0]
+                                .outerHTML;
+                        }
+                        break;
+                }
+            } else {
+                switch (tag) {
+                    case "b":
+                    case "del":
+                    case "i":
+                    case "sub":
+                    case "sup":
+                    case "u":
+                    case "s":
+                        return (
+                            "<" +
+                            tag +
+                            ">" +
+                            raw_bbencode(content, admin) +
+                            "</" +
+                            tag +
+                            ">"
+                        );
+                    case "c":
+                        return (
+                            '<span style="text-transform: uppercase">' +
+                            raw_bbencode(content, admin) +
+                            "</span>"
+                        );
+                    case "w":
+                        return (
+                            '<span style="text-transform: lowercase">' +
+                            raw_bbencode(content, admin) +
+                            "</span>"
+                        );
+                    case "alternian":
+                        return (
+                            '<span class="alternian">' +
+                            raw_bbencode(content, admin) +
+                            "</span>"
+                        );
+                    case "spoiler":
+                        return (
+                            '<label class="spoiler"><input type="checkbox"><span>SPOILER</span><span>' +
+                            raw_bbencode(content, admin) +
+                            "</span></label>"
+                        );
+                    case "raw":
+                        return content;
+                }
+            }
+            return (
+                "[" +
+                tag +
+                (attribute ? "=" + attribute : "") +
+                "]" +
+                raw_bbencode(content, admin) +
+                "[/" +
+                tag +
+                "]"
+            );
+        }
+    );
 }
 
-module.exports = parseBBCode;
+module.exports = bbencode;
