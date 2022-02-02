@@ -124,6 +124,29 @@ try {
             fs.readFileSync(`./chats/${file}`).toString()
         );
 
+        // Navigation links
+        let pagerLinks = "";
+        for (let i = 1; i <= fileData.length; i++) {
+            pagerLinks += `<a href="?p=${i}">${i}</a>`;
+        }
+
+        newHTML(".log_top_nav .pager").html(pagerLinks);
+        newHTML(".log_bottom_nav .pager").html(pagerLinks);
+
+        newHTML("body").append(`<script>${copyScript()}</script>`);
+        newHTML("head").append(`<style>${copyStyle()}</style>`);
+
+        const stringHTML = newHTML.html();
+        let freeHTML = stringHTML.substring(
+            0,
+            stringHTML.indexOf('<div id="conversation_wrap">') +
+                '<div id="conversation_wrap">'.length
+        );
+        const endFreeHTML = stringHTML.substring(
+            stringHTML.indexOf('<div id="conversation_wrap">') +
+                '<div id="conversation_wrap">'.length
+        );
+
         fileData.forEach((raw, pageNumber) => {
             let data = parseBBCode(
                 minify(raw, {
@@ -143,24 +166,12 @@ try {
 
             page.append(dataHTML.html(contents));
 
-            newHTML("#conversation_wrap").append(page);
+            freeHTML += el.html();
         });
-
-        // Navigation links
-        let pagerLinks = "";
-        for (let i = 1; i <= fileData.length; i++) {
-            pagerLinks += `<a href="?p=${i}">${i}</a>`;
-        }
-
-        newHTML(".log_top_nav .pager").html(pagerLinks);
-        newHTML(".log_bottom_nav .pager").html(pagerLinks);
-
-        newHTML("body").append(`<script>${copyScript()}</script>`);
-        newHTML("head").append(`<style>${copyStyle()}</style>`);
 
         fs.writeFileSync(
             `./out/${path.basename(file, path.extname(file))}.html`,
-            minify(newHTML.html(), {
+            minify(freeHTML + endFreeHTML, {
                 removeTagWhitespace: false,
                 collapseInlineTagWhitespace: false,
                 collapseWhitespace: true,
@@ -179,7 +190,7 @@ try {
     );
 } catch (e) {
     console.error(e);
-    fs.writeFileSync(`./log-${new Date().getTime()}.txt`, e);
+    fs.writeFileSync(`./log-${new Date().getTime()}.txt`, e.toString());
 }
 
 process.stdin.once("data", function () {
