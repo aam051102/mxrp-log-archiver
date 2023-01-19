@@ -8,12 +8,13 @@ const fails = [];
 /**
  * Maximum length for HTML
  */
-let maximumSectionLength;
+let maxChunkPageCount;
 
 const fetchChatData = async (url, pages) => {
     let sections = [];
     let pageData = [];
-    let sectionLength = 0;
+    let previousPageChunk = 0;
+    let currentPageChunk = 0;
 
     for (let i = pages; i >= 1; i--) {
         console.log(`Fetching: ${url}/${i}`);
@@ -32,20 +33,31 @@ const fetchChatData = async (url, pages) => {
 
                 const content = convoWrapper.html();
 
-                if (sectionLength + content.length >= maximumSectionLength) {
-                    sectionLength = 0;
-                    sections.push(pageData);
+                if (
+                    currentPageChunk !== 0 &&
+                    currentPageChunk % maxChunkPageCount === 0
+                ) {
+                    sections.push({
+                        from: previousPageChunk,
+                        to: currentPageChunk,
+                        pages: pageData,
+                    });
                     pageData = [];
+                    previousPageChunk = currentPageChunk;
                 }
 
-                sectionLength += content.length;
+                currentPageChunk++;
 
                 pageData.push(content);
             });
     }
 
     if (pageData.length) {
-        sections.push(pageData);
+        sections.push({
+            from: previousPageChunk,
+            to: currentPageChunk,
+            pages: pageData,
+        });
     }
 
     return sections;
@@ -91,7 +103,7 @@ const fetchGroupData = async (url) => {
     const settings = fs.existsSync("./settings.json")
         ? JSON.parse(fs.readFileSync("./settings.json"))
         : {};
-    maximumSectionLength = settings.maximumSectionLength || 1_000_000;
+    maxChunkPageCount = settings.maxChunkPageCount ?? 250;
 
     // Loading
     if (!fs.existsSync("./input.json")) {
@@ -117,23 +129,13 @@ const fetchGroupData = async (url) => {
                 chats[i].pages
             );
 
-            if (sections.length === 1) {
-                const data = sections[0];
+            fs.mkdirSync(`./chats/${chats[i].id}`);
+
+            for (let j = 0, l = sections.length; j < l; j++) {
                 fs.writeFileSync(
-                    `./chats/${chats[i].id}.json`,
-                    JSON.stringify(data)
+                    `./chats/${chats[i].id}/${j}_${sections[j].from}-${sections[j].to}.json`,
+                    JSON.stringify(sections[j].pages)
                 );
-            } else if (sections.length > 1) {
-                fs.mkdirSync(`./chats/${chats[i].id}`);
-
-                for (let j = 0, l = sections.length; j < l; j++) {
-                    const data = sections[j];
-
-                    fs.writeFileSync(
-                        `./chats/${chats[i].id}/${j}.json`,
-                        JSON.stringify(data)
-                    );
-                }
             }
         }
     }
@@ -152,13 +154,13 @@ const fetchGroupData = async (url) => {
     }
 
     // Log fails
-    console.log("LOGGING FAILS:");
+    if (fails.length) console.log("ERRORS DURING LOGGING:");
     fails.forEach((url) => {
         console.error(`- ${url}`);
     });
 
     console.log(
-        'Successfully ran MXRP Collector. Check "convos" directory for downloaded content and run the MXRP Builder in from this directory to create readable pages.'
+        '\nSuccessfully ran MXRP Collector. Check "convos" directory for downloaded content and run the MXRP Builder in from this directory to create readable pages.'
     );
 
     process.stdin.once("data", function () {
