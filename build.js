@@ -31,12 +31,16 @@ const convertChat = (file, leadup) => {
 
     let pageFrom = 0;
     let pageTo = 0;
-    let pages = fileData;
+    let pages = [];
 
     if (fileData.pages) {
         pageFrom = fileData.from - 1;
         pageTo = fileData.to - 1;
         pages = fileData.pages;
+    } else {
+        pages = fileData;
+        pageFrom = 1;
+        pageTo = pageFrom + fileData.length - 1;
     }
 
     // HTML construction
@@ -44,8 +48,8 @@ const convertChat = (file, leadup) => {
 
     // Navigation links
     let pagerLinks = "";
-    for (let i = 1; i <= pages.length; i++) {
-        pagerLinks += `<a href="?p=${i + pageFrom}">${i + pageFrom}</a>`;
+    for (let i = pageFrom; i <= pageTo; i++) {
+        pagerLinks += `<a href="?p=${i}">${i}</a>`;
     }
 
     newHTML(".log_top_nav .pager").html(pagerLinks);
@@ -75,11 +79,9 @@ const convertChat = (file, leadup) => {
         const dataHTML = cheerio.load(data);
 
         const el = cheerio.load(
-            `<section id="page${
-                pages.length - pageNumber + pageFrom
-            }"></section>`
+            `<section id="page${pageTo - pageNumber}"></section>`
         );
-        const page = el(`#page${pages.length - pageNumber + pageFrom}`);
+        const page = el(`#page${pageTo - pageNumber}`);
 
         const contents = dataHTML("body").children();
 
@@ -92,7 +94,7 @@ const convertChat = (file, leadup) => {
 
     fs.mkdirSync(`./out/${leadup.join("/")}`, { recursive: true });
     fs.writeFileSync(
-        `./out/${leadup.join("/")}/${cleanFileName}.html`,
+        `./out/${leadup.join("/")}/${cleanFileName}_${pageFrom}-${pageTo}.html`,
         minify(freeHTML + endFreeHTML, {
             removeTagWhitespace: false,
             collapseInlineTagWhitespace: false,
