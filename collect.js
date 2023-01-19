@@ -32,13 +32,13 @@ const fetchChatData = async (url, pages) => {
 
                 const content = convoWrapper.html();
 
-                if (sectionLength + content >= maximumSectionLength) {
-                    sectionLength = content;
+                if (sectionLength + content.length >= maximumSectionLength) {
+                    sectionLength = 0;
                     sections.push(pageData);
                     pageData = [];
-                } else {
-                    sectionLength += content;
                 }
+
+                sectionLength += content.length;
 
                 pageData.push(content);
             });
@@ -123,14 +123,14 @@ const fetchGroupData = async (url) => {
                     `./chats/${chats[i].id}.json`,
                     JSON.stringify(data)
                 );
-            } else if (sections.length > 0) {
+            } else if (sections.length > 1) {
                 fs.mkdirSync(`./chats/${chats[i].id}`);
 
-                for (let i = 0, l = sections.length; i < l; i++) {
-                    const data = sections[i];
+                for (let j = 0, l = sections.length; j < l; j++) {
+                    const data = sections[j];
 
                     fs.writeFileSync(
-                        `./chats/${chats[i].id}/${i}.json`,
+                        `./chats/${chats[i].id}/${j}.json`,
                         JSON.stringify(data)
                     );
                 }
