@@ -33,7 +33,7 @@ const fetchChatData = async (url, pages) => {
 
                 const content = convoWrapper.html();
 
-                if (currentPageChunk - previousPageChunk >= maxChunkPageCount) {
+                if (previousPageChunk - currentPageChunk >= maxChunkPageCount) {
                     sections.push({
                         from: currentPageChunk,
                         to: previousPageChunk,
