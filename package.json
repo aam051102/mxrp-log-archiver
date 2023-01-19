@@ -7,8 +7,8 @@
         "start:builder": "node build.js",
         "start:collector": "node collect.js",
         "build": "npm run build:builder && npm run build:collector",
-        "build:builder": "pkg --compress GZip build.js --out-path dist",
-        "build:collector": "pkg --compress GZip collect.js --out-path dist"
+        "build:builder": "pkg --compress GZip build.js --out-path dist -t node16-win,node16-linux,node16-macos",
+        "build:collector": "pkg --compress GZip collect.js --out-path dist -t node16-win,node16-linux,node16-macos"
     },
     "keywords": [],
     "author": "MadCreativity",
