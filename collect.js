@@ -13,8 +13,8 @@ let maxChunkPageCount;
 const fetchChatData = async (url, pages) => {
     let sections = [];
     let pageData = [];
-    let previousPageChunk = 0;
-    let currentPageChunk = 0;
+    let previousPageChunk = pages;
+    let currentPageChunk = pages;
 
     for (let i = pages; i >= 1; i--) {
         console.log(`Fetching: ${url}/${i}`);
@@ -33,20 +33,17 @@ const fetchChatData = async (url, pages) => {
 
                 const content = convoWrapper.html();
 
-                if (
-                    currentPageChunk !== 0 &&
-                    currentPageChunk % maxChunkPageCount === 0
-                ) {
+                if (currentPageChunk - previousPageChunk >= maxChunkPageCount) {
                     sections.push({
-                        from: previousPageChunk,
-                        to: currentPageChunk,
+                        from: currentPageChunk,
+                        to: previousPageChunk,
                         pages: pageData,
                     });
                     pageData = [];
                     previousPageChunk = currentPageChunk;
                 }
 
-                currentPageChunk++;
+                currentPageChunk--;
 
                 pageData.push(content);
             });
@@ -54,8 +51,8 @@ const fetchChatData = async (url, pages) => {
 
     if (pageData.length) {
         sections.push({
-            from: previousPageChunk,
-            to: currentPageChunk,
+            from: currentPageChunk,
+            to: previousPageChunk,
             pages: pageData,
         });
     }
@@ -160,7 +157,7 @@ const fetchGroupData = async (url) => {
     });
 
     console.log(
-        '\nSuccessfully ran MXRP Collector. Check "convos" directory for downloaded content and run the MXRP Builder in from this directory to create readable pages.'
+        '\nSuccessfully ran MXRP Collector. Check "chats" and "groups" directory to see the downloaded content. To convert them to a readable format, run the MXRP Builder from the same directory that you ran the MXRP Collector.'
     );
 
     process.stdin.once("data", function () {

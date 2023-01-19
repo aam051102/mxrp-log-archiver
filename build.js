@@ -26,7 +26,6 @@ const copyStyle = () => {
 const convertChat = (file, leadup) => {
     console.log(`Started converting ${file}`);
 
-    const cleanFileName = path.basename(file, path.extname(file));
     const fileData = JSON.parse(fs.readFileSync(file).toString());
 
     let pageFrom = 0;
@@ -34,8 +33,8 @@ const convertChat = (file, leadup) => {
     let pages = [];
 
     if (fileData.pages) {
-        pageFrom = fileData.from - 1;
-        pageTo = fileData.to - 1;
+        pageFrom = fileData.from + 1;
+        pageTo = fileData.to;
         pages = fileData.pages;
     } else {
         pages = fileData;
@@ -94,7 +93,7 @@ const convertChat = (file, leadup) => {
 
     fs.mkdirSync(`./out/${leadup.join("/")}`, { recursive: true });
     fs.writeFileSync(
-        `./out/${leadup.join("/")}/${cleanFileName}_${pageFrom}-${pageTo}.html`,
+        `./out/${leadup.join("/")}/${pageFrom}-${pageTo}.html`,
         minify(freeHTML + endFreeHTML, {
             removeTagWhitespace: false,
             collapseInlineTagWhitespace: false,
