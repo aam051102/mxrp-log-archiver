@@ -134,7 +134,7 @@ const fetchGroupData = async (url) => {
             for (let j = 0, l = sections.length; j < l; j++) {
                 fs.writeFileSync(
                     `./chats/${chats[i].id}/${j}_${sections[j].from}-${sections[j].to}.json`,
-                    JSON.stringify(sections[j].pages)
+                    JSON.stringify(sections[j])
                 );
             }
         }

@@ -26,13 +26,26 @@ const copyStyle = () => {
 const convertChat = (file, leadup) => {
     console.log(`Started converting ${file}`);
 
-    const newHTML = cheerio.load(templateHTML);
+    const cleanFileName = path.basename(file, path.extname(file));
     const fileData = JSON.parse(fs.readFileSync(file).toString());
+
+    let pageFrom = 0;
+    let pageTo = 0;
+    let pages = fileData;
+
+    if (fileData.pages) {
+        pageFrom = fileData.from - 1;
+        pageTo = fileData.to - 1;
+        pages = fileData.pages;
+    }
+
+    // HTML construction
+    const newHTML = cheerio.load(templateHTML);
 
     // Navigation links
     let pagerLinks = "";
-    for (let i = 1; i <= fileData.length; i++) {
-        pagerLinks += `<a href="?p=${i}">${i}</a>`;
+    for (let i = 1; i <= pages.length; i++) {
+        pagerLinks += `<a href="?p=${i + pageFrom}">${i + pageFrom}</a>`;
     }
 
     newHTML(".log_top_nav .pager").html(pagerLinks);
@@ -52,7 +65,7 @@ const convertChat = (file, leadup) => {
             '<div id="conversation_wrap">'.length
     );
 
-    fileData.forEach((raw, pageNumber) => {
+    pages.forEach((raw, pageNumber) => {
         let data = minify(raw, {
             removeTagWhitespace: false,
             collapseInlineTagWhitespace: false,
@@ -62,9 +75,11 @@ const convertChat = (file, leadup) => {
         const dataHTML = cheerio.load(data);
 
         const el = cheerio.load(
-            `<section id="page${fileData.length - pageNumber}"></section>`
+            `<section id="page${
+                pages.length - pageNumber + pageFrom
+            }"></section>`
         );
-        const page = el(`#page${fileData.length - pageNumber}`);
+        const page = el(`#page${pages.length - pageNumber + pageFrom}`);
 
         const contents = dataHTML("body").children();
 
@@ -77,10 +92,7 @@ const convertChat = (file, leadup) => {
 
     fs.mkdirSync(`./out/${leadup.join("/")}`, { recursive: true });
     fs.writeFileSync(
-        `./out/${leadup.join("/")}/${path.basename(
-            file,
-            path.extname(file)
-        )}.html`,
+        `./out/${leadup.join("/")}/${cleanFileName}.html`,
         minify(freeHTML + endFreeHTML, {
             removeTagWhitespace: false,
             collapseInlineTagWhitespace: false,
