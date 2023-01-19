@@ -4,8 +4,16 @@ const cheerio = require("cheerio");
 
 const fails = [];
 
+// Settings
+/**
+ * Maximum length for HTML
+ */
+let maximumSectionLength;
+
 const fetchChatData = async (url, pages) => {
+    let sections = [];
     let pageData = [];
+    let sectionLength = 0;
 
     for (let i = pages; i >= 1; i--) {
         console.log(`Fetching: ${url}/${i}`);
@@ -22,11 +30,25 @@ const fetchChatData = async (url, pages) => {
                     return [];
                 }
 
-                pageData.push(convoWrapper.html());
+                const content = convoWrapper.html();
+
+                if (sectionLength + content >= maximumSectionLength) {
+                    sectionLength = content;
+                    sections.push(pageData);
+                    pageData = [];
+                } else {
+                    sectionLength += content;
+                }
+
+                pageData.push(content);
             });
     }
 
-    return pageData;
+    if (pageData.length) {
+        sections.push(pageData);
+    }
+
+    return sections;
 };
 
 const fetchGroupData = async (url) => {
@@ -65,8 +87,15 @@ const fetchGroupData = async (url) => {
 };
 
 (async () => {
+    // Settings
+    const settings = fs.existsSync("./settings.json")
+        ? JSON.parse(fs.readFileSync("./settings.json"))
+        : {};
+    maximumSectionLength = settings.maximumSectionLength || 1_000_000;
+
+    // Loading
     if (!fs.existsSync("./input.json")) {
-        console.error("MXRP Builder", '"input.json" does not exist.');
+        console.error("MXRP Collector", '"input.json" does not exist.');
 
         process.stdin.once("data", function () {
             process.exit(1);
@@ -83,15 +112,28 @@ const fetchGroupData = async (url) => {
     const chats = input.chats;
     for (let i = 0; i < chats.length; i++) {
         if (!fs.existsSync(`./chats/${chats[i].id}.json`)) {
-            const data = await fetchChatData(
+            const sections = await fetchChatData(
                 `https://mxrp.chat/${chats[i].id}/log`,
                 chats[i].pages
             );
-            if (data.length > 0) {
+
+            if (sections.length === 1) {
+                const data = sections[0];
                 fs.writeFileSync(
                     `./chats/${chats[i].id}.json`,
                     JSON.stringify(data)
                 );
+            } else if (sections.length > 0) {
+                fs.mkdirSync(`./chats/${chats[i].id}`);
+
+                for (let i = 0, l = sections.length; i < l; i++) {
+                    const data = sections[i];
+
+                    fs.writeFileSync(
+                        `./chats/${chats[i].id}/${i}.json`,
+                        JSON.stringify(data)
+                    );
+                }
             }
         }
     }

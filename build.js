@@ -23,6 +23,87 @@ const copyStyle = () => {
     return new CleanCSS({}).minify(templateStyle).styles;
 };
 
+const convertChat = (file, leadup) => {
+    console.log(`Started converting ${file}`);
+
+    const newHTML = cheerio.load(templateHTML);
+    const fileData = JSON.parse(fs.readFileSync(`./chats/${file}`).toString());
+
+    // Navigation links
+    let pagerLinks = "";
+    for (let i = 1; i <= fileData.length; i++) {
+        pagerLinks += `<a href="?p=${i}">${i}</a>`;
+    }
+
+    newHTML(".log_top_nav .pager").html(pagerLinks);
+    newHTML(".log_bottom_nav .pager").html(pagerLinks);
+
+    newHTML("body").append(`<script>${copyScript()}</script>`);
+    newHTML("head").append(`<style>${copyStyle()}</style>`);
+
+    const stringHTML = newHTML.html();
+    let freeHTML = stringHTML.substring(
+        0,
+        stringHTML.indexOf('<div id="conversation_wrap">') +
+            '<div id="conversation_wrap">'.length
+    );
+    const endFreeHTML = stringHTML.substring(
+        stringHTML.indexOf('<div id="conversation_wrap">') +
+            '<div id="conversation_wrap">'.length
+    );
+
+    fileData.forEach((raw, pageNumber) => {
+        let data = minify(raw, {
+            removeTagWhitespace: false,
+            collapseInlineTagWhitespace: false,
+            collapseWhitespace: true,
+        });
+
+        const dataHTML = cheerio.load(data);
+
+        const el = cheerio.load(
+            `<section id="page${fileData.length - pageNumber}"></section>`
+        );
+        const page = el(`#page${fileData.length - pageNumber}`);
+
+        const contents = dataHTML("body").children();
+
+        for (let i = 0; i < contents.length; i++) {
+            page.append(bbencode(dataHTML.html(contents.get(i))));
+        }
+
+        freeHTML += el("body").html();
+    });
+
+    fs.mkdirSync(leadup.join("/"), { recursive: true });
+    fs.writeFileSync(
+        `./out/${leadup.join("/")}/${path.basename(
+            file,
+            path.extname(file)
+        )}.html`,
+        minify(freeHTML + endFreeHTML, {
+            removeTagWhitespace: false,
+            collapseInlineTagWhitespace: false,
+            collapseWhitespace: true,
+            collapseBooleanAttributes: true,
+            removeComments: true,
+            minifyCSS: true,
+            minifyJS: true,
+            minifyURLs: true,
+        })
+    );
+};
+
+const convertChatDeep = (item, leadup = []) => {
+    if (fs.statSync(item).isDirectory()) {
+        leadup.push(path.basename(item));
+
+        fs.readdirSync(item).forEach((p) => convertChatDeep(p, leadup));
+    } else {
+        convertChat(item, leadup);
+    }
+};
+
 fs.mkdirSync("./out", { recursive: true });
 
 const templateHTML = fs
@@ -125,74 +206,7 @@ try {
         );
     }
 
-    fs.readdirSync("./chats").forEach(function (file) {
-        console.log(`Started converting ${file}`);
-
-        const newHTML = cheerio.load(templateHTML);
-        const fileData = JSON.parse(
-            fs.readFileSync(`./chats/${file}`).toString()
-        );
-
-        // Navigation links
-        let pagerLinks = "";
-        for (let i = 1; i <= fileData.length; i++) {
-            pagerLinks += `<a href="?p=${i}">${i}</a>`;
-        }
-
-        newHTML(".log_top_nav .pager").html(pagerLinks);
-        newHTML(".log_bottom_nav .pager").html(pagerLinks);
-
-        newHTML("body").append(`<script>${copyScript()}</script>`);
-        newHTML("head").append(`<style>${copyStyle()}</style>`);
-
-        const stringHTML = newHTML.html();
-        let freeHTML = stringHTML.substring(
-            0,
-            stringHTML.indexOf('<div id="conversation_wrap">') +
-                '<div id="conversation_wrap">'.length
-        );
-        const endFreeHTML = stringHTML.substring(
-            stringHTML.indexOf('<div id="conversation_wrap">') +
-                '<div id="conversation_wrap">'.length
-        );
-
-        fileData.forEach((raw, pageNumber) => {
-            let data = minify(raw, {
-                removeTagWhitespace: false,
-                collapseInlineTagWhitespace: false,
-                collapseWhitespace: true,
-            });
-
-            const dataHTML = cheerio.load(data);
-
-            const el = cheerio.load(
-                `<section id="page${fileData.length - pageNumber}"></section>`
-            );
-            const page = el(`#page${fileData.length - pageNumber}`);
-
-            const contents = dataHTML("body").children();
-
-            for (let i = 0; i < contents.length; i++) {
-                page.append(bbencode(dataHTML.html(contents.get(i))));
-            }
-
-            freeHTML += el("body").html();
-        });
-
-        fs.writeFileSync(
-            `./out/${path.basename(file, path.extname(file))}.html`,
-            minify(freeHTML + endFreeHTML, {
-                removeTagWhitespace: false,
-                collapseInlineTagWhitespace: false,
-                collapseWhitespace: true,
-                collapseBooleanAttributes: true,
-                removeComments: true,
-                minifyCSS: true,
-                minifyJS: true,
-                minifyURLs: true,
-            })
-        );
-    });
+    fs.readdirSync("./chats").forEach((item) => convertChatDeep(item));
 
     console.log(
         "MXRP Builder",
