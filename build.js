@@ -27,7 +27,7 @@ const convertChat = (file, leadup) => {
     console.log(`Started converting ${file}`);
 
     const newHTML = cheerio.load(templateHTML);
-    const fileData = JSON.parse(fs.readFileSync(`./chats/${file}`).toString());
+    const fileData = JSON.parse(fs.readFileSync(file).toString());
 
     // Navigation links
     let pagerLinks = "";
@@ -75,7 +75,7 @@ const convertChat = (file, leadup) => {
         freeHTML += el("body").html();
     });
 
-    fs.mkdirSync(leadup.join("/"), { recursive: true });
+    fs.mkdirSync(`./out/${leadup.join("/")}`, { recursive: true });
     fs.writeFileSync(
         `./out/${leadup.join("/")}/${path.basename(
             file,
@@ -98,7 +98,9 @@ const convertChatDeep = (item, leadup = []) => {
     if (fs.statSync(item).isDirectory()) {
         leadup.push(path.basename(item));
 
-        fs.readdirSync(item).forEach((p) => convertChatDeep(p, leadup));
+        fs.readdirSync(item).forEach((p) =>
+            convertChatDeep(path.join(item, p), leadup)
+        );
     } else {
         convertChat(item, leadup);
     }
@@ -206,7 +208,9 @@ try {
         );
     }
 
-    fs.readdirSync("./chats").forEach((item) => convertChatDeep(item));
+    fs.readdirSync("./chats").forEach((item) =>
+        convertChatDeep(path.join("./chats", item))
+    );
 
     console.log(
         "MXRP Builder",
