@@ -92,7 +92,7 @@ const fetchGroupData = async (groupId) => {
             });
     }
 
-    return pageData;
+    return pageData.reverse();
 };
 
 (async () => {
@@ -126,15 +126,21 @@ const fetchGroupData = async (groupId) => {
     const groups = input.groups;
     for (let i = 0; i < groups.length; i++) {
         if (!fs.existsSync(`./groups/${groups[i]}`)) {
+            fs.mkdirSync(`./groups/${groups[i]}`, { recursive: true });
+
             const data = await fetchGroupData(groups[i]);
 
             let from = 0;
-            let to = Math.min(data.length, from + maxChunkPageCount);
+            let to = Math.min(data.length - 1, from + maxChunkPageCount);
 
             while (from !== to) {
                 fs.writeFileSync(
                     `./groups/${groups[i]}/${from}-${to}.json`,
-                    JSON.stringify({ pages: data.slice(from, to), from, to })
+                    JSON.stringify({
+                        pages: data.slice(from, to),
+                        from,
+                        to,
+                    })
                 );
 
                 from = Math.min(data.length, from + maxChunkPageCount);

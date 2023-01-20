@@ -23,6 +23,7 @@ const copyStyle = () => {
     return new CleanCSS({}).minify(templateStyle).styles;
 };
 
+/// Converts a chat to HTML
 const convertChat = (file, leadup) => {
     console.log(`Started converting ${file}`);
 
@@ -107,6 +108,7 @@ const convertChat = (file, leadup) => {
     );
 };
 
+/// Recursive function to join paths and convert chats
 const convertChatDeep = (item, leadup = []) => {
     if (fs.statSync(item).isDirectory()) {
         leadup.push(path.basename(item));
@@ -119,10 +121,11 @@ const convertChatDeep = (item, leadup = []) => {
     }
 };
 
+/// Converts a group to HTML
 const convertGroup = (file, leadup) => {
     console.log(`Started converting ${file}`);
 
-    const fileData = JSON.parse(fs.readFileSync(`./groups/${file}`).toString());
+    const fileData = JSON.parse(fs.readFileSync(file).toString());
 
     const pageFrom = fileData.from + 1;
     const pageTo = fileData.to;
@@ -152,7 +155,7 @@ const convertGroup = (file, leadup) => {
     );
 
     for (let i = pageFrom; i <= pageTo; i++) {
-        let data = minify(fileData.pages.reverse().join(""), {
+        let data = minify(fileData.pages.join(""), {
             removeTagWhitespace: false,
             collapseInlineTagWhitespace: false,
             collapseWhitespace: true,
@@ -187,6 +190,7 @@ const convertGroup = (file, leadup) => {
     );
 };
 
+/// Recursive function to join paths and convert groups
 const convertGroupDeep = (item, leadup = []) => {
     if (fs.statSync(item).isDirectory()) {
         leadup.push(path.basename(item));
