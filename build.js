@@ -127,13 +127,6 @@ const convertGroup = (file, leadup) => {
     const pageFrom = fileData.from + 1;
     const pageTo = fileData.to;
 
-    let data = minify(fileData.pages.reverse().join(""), {
-        removeTagWhitespace: false,
-        collapseInlineTagWhitespace: false,
-        collapseWhitespace: true,
-    });
-
-    const dataHTML = cheerio.load(data);
     const newHTML = cheerio.load(templateHTML);
 
     let pagerLinks = "";
@@ -158,13 +151,22 @@ const convertGroup = (file, leadup) => {
             '<div id="conversation_wrap">'.length
     );
 
-    const contents = dataHTML("body").children();
-
     for (let i = pageFrom; i <= pageTo; i++) {
+        let data = minify(fileData.pages.reverse().join(""), {
+            removeTagWhitespace: false,
+            collapseInlineTagWhitespace: false,
+            collapseWhitespace: true,
+        });
+
+        const dataHTML = cheerio.load(data);
+        const contents = dataHTML("body").children();
+
         const el = cheerio.load(`<section id="page${i}"></section>`);
         const page = el(`#page${i}`);
 
-        page.append(bbencode(dataHTML.html(contents.get(j))));
+        for (let j = 0; j < contents.length; j++) {
+            page.append(bbencode(dataHTML.html(contents.get(j))));
+        }
 
         freeHTML += el("body").html();
     }
