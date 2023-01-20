@@ -79,9 +79,9 @@ const convertChat = (file, leadup) => {
         const dataHTML = cheerio.load(data);
 
         const el = cheerio.load(
-            `<section id="page${pageTo - pageNumber}"></section>`
+            `<section id="page${pageNumber + pageFrom}"></section>`
         );
-        const page = el(`#page${pageTo - pageNumber}`);
+        const page = el(`#page${pageNumber + pageFrom}`);
 
         const contents = dataHTML("body").children();
 

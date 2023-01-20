@@ -14,10 +14,10 @@ const fetchChatData = async (chatId, pages) => {
     const url = `https://mxrp.chat/${chatId}/log`;
 
     let pageData = [];
-    let previousPageChunk = pages;
-    let currentPageChunk = pages;
+    let previousPageChunk = 0;
+    let currentPageChunk = 0;
 
-    for (let i = pages; i >= 1; i--) {
+    for (let i = 1; i <= pages; i++) {
         console.log(`Fetching: ${url}/${i}`);
 
         await fetch(`${url}/${i}`)
@@ -29,22 +29,26 @@ const fetchChatData = async (chatId, pages) => {
                 if (!convoWrapper.length) {
                     console.error(`Failed to fetch: ${url}/${i}`);
                     fails.push(`${url}/${i}`);
-                    return [];
+                    return;
                 }
 
                 const content = convoWrapper.html();
 
-                if (previousPageChunk - currentPageChunk >= maxChunkPageCount) {
+                if (currentPageChunk - previousPageChunk >= maxChunkPageCount) {
                     fs.writeFileSync(
-                        `./chats/${chatId}/${currentPageChunk}-${previousPageChunk}.json`,
-                        JSON.stringify(pageData)
+                        `./chats/${chatId}/${previousPageChunk}-${currentPageChunk}.json`,
+                        JSON.stringify({
+                            from: previousPageChunk,
+                            to: currentPageChunk,
+                            pages: pageData,
+                        })
                     );
 
                     pageData = [];
                     previousPageChunk = currentPageChunk;
                 }
 
-                currentPageChunk--;
+                currentPageChunk++;
 
                 pageData.push(content);
             });
@@ -52,8 +56,12 @@ const fetchChatData = async (chatId, pages) => {
 
     if (pageData.length) {
         fs.writeFileSync(
-            `./chats/${chatId}/${currentPageChunk}-${previousPageChunk}.json`,
-            JSON.stringify(pageData)
+            `./chats/${chatId}/${previousPageChunk}-${currentPageChunk}.json`,
+            JSON.stringify({
+                from: previousPageChunk,
+                to: currentPageChunk,
+                pages: pageData,
+            })
         );
     }
 };
