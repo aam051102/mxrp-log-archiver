@@ -155,7 +155,7 @@ const convertGroup = (file, leadup) => {
     );
 
     for (let i = pageFrom; i <= pageTo; i++) {
-        let data = minify(fileData.pages.join(""), {
+        let data = minify(fileData.pages[i - pageFrom], {
             removeTagWhitespace: false,
             collapseInlineTagWhitespace: false,
             collapseWhitespace: true,
