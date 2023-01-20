@@ -119,6 +119,84 @@ const convertChatDeep = (item, leadup = []) => {
     }
 };
 
+const convertGroup = (file, leadup) => {
+    console.log(`Started converting ${file}`);
+
+    const fileData = JSON.parse(fs.readFileSync(`./groups/${file}`).toString());
+
+    const pageFrom = fileData.from + 1;
+    const pageTo = fileData.to;
+
+    let data = minify(fileData.pages.reverse().join(""), {
+        removeTagWhitespace: false,
+        collapseInlineTagWhitespace: false,
+        collapseWhitespace: true,
+    });
+
+    const dataHTML = cheerio.load(data);
+    const newHTML = cheerio.load(templateHTML);
+
+    let pagerLinks = "";
+    for (let i = pageFrom; i <= pageTo; i++) {
+        pagerLinks += `<a href="?p=${i}">${i}</a>`;
+    }
+
+    newHTML(".log_top_nav .pager").html(pagerLinks);
+    newHTML(".log_bottom_nav .pager").html(pagerLinks);
+
+    newHTML("body").append(`<script>${copyScript()}</script>`);
+    newHTML("head").append(`<style>${copyStyle()}</style>`);
+
+    const stringHTML = newHTML.html();
+    let freeHTML = stringHTML.substring(
+        0,
+        stringHTML.indexOf('<div id="conversation_wrap">') +
+            '<div id="conversation_wrap">'.length
+    );
+    const endFreeHTML = stringHTML.substring(
+        stringHTML.indexOf('<div id="conversation_wrap">') +
+            '<div id="conversation_wrap">'.length
+    );
+
+    const contents = dataHTML("body").children();
+
+    for (let i = pageFrom; i <= pageTo; i++) {
+        const el = cheerio.load(`<section id="page${i}"></section>`);
+        const page = el(`#page${i}`);
+
+        page.append(bbencode(dataHTML.html(contents.get(j))));
+
+        freeHTML += el("body").html();
+    }
+
+    fs.mkdirSync(`./out/${leadup.join("/")}`, { recursive: true });
+    fs.writeFileSync(
+        `./out/${leadup.join("/")}/${pageFrom}-${pageTo}.html`,
+        minify(freeHTML + endFreeHTML, {
+            removeTagWhitespace: false,
+            collapseInlineTagWhitespace: false,
+            collapseWhitespace: true,
+            collapseBooleanAttributes: true,
+            removeComments: true,
+            minifyCSS: true,
+            minifyJS: true,
+            minifyURLs: true,
+        })
+    );
+};
+
+const convertGroupDeep = (item, leadup = []) => {
+    if (fs.statSync(item).isDirectory()) {
+        leadup.push(path.basename(item));
+
+        fs.readdirSync(item).forEach((p) =>
+            convertGroupDeep(path.join(item, p), leadup)
+        );
+    } else {
+        convertGroup(item, leadup);
+    }
+};
+
 fs.mkdirSync("./out", { recursive: true });
 
 const templateHTML = fs
@@ -136,80 +214,9 @@ try {
         );
     }
 
-    fs.readdirSync("./groups").forEach(function (file) {
-        console.log(`Started converting ${file}`);
-
-        let data = minify(fs.readFileSync(`./groups/${file}`).toString(), {
-            removeTagWhitespace: false,
-            collapseInlineTagWhitespace: false,
-            collapseWhitespace: true,
-        });
-
-        // Reverse dates
-        const match = /<h2(?:(?!<h2).|\n)*/g;
-        let dataReversed = "";
-        let res;
-        while ((res = match.exec(data))) {
-            dataReversed = res[0] + dataReversed;
-        }
-        data = dataReversed;
-
-        const dataHTML = cheerio.load(data);
-        const newHTML = cheerio.load(templateHTML);
-        const contents = dataHTML("body").children();
-
-        const pageAmount = Math.ceil(contents.length / 200);
-        let pagerLinks = "";
-        for (let i = 1; i <= pageAmount; i++) {
-            pagerLinks += `<a href="?p=${i}">${i}</a>`;
-        }
-
-        newHTML(".log_top_nav .pager").html(pagerLinks);
-        newHTML(".log_bottom_nav .pager").html(pagerLinks);
-
-        newHTML("body").append(`<script>${copyScript()}</script>`);
-        newHTML("head").append(`<style>${copyStyle()}</style>`);
-
-        const stringHTML = newHTML.html();
-        let freeHTML = stringHTML.substring(
-            0,
-            stringHTML.indexOf('<div id="conversation_wrap">') +
-                '<div id="conversation_wrap">'.length
-        );
-        const endFreeHTML = stringHTML.substring(
-            stringHTML.indexOf('<div id="conversation_wrap">') +
-                '<div id="conversation_wrap">'.length
-        );
-
-        for (let i = 1; i <= pageAmount; i++) {
-            const el = cheerio.load(`<section id="page${i}"></section>`);
-            const page = el(`#page${i}`);
-
-            const start = (i - 1) * 200;
-            let end = start + (contents.length - start);
-            if (end - start > 200) end = start + 200;
-
-            for (let j = start; j < end; j++) {
-                page.append(bbencode(dataHTML.html(contents.get(j))));
-            }
-
-            freeHTML += el("body").html();
-        }
-
-        fs.writeFileSync(
-            `./out/${path.basename(file, path.extname(file))}.html`,
-            minify(freeHTML + endFreeHTML, {
-                removeTagWhitespace: false,
-                collapseInlineTagWhitespace: false,
-                collapseWhitespace: true,
-                collapseBooleanAttributes: true,
-                removeComments: true,
-                minifyCSS: true,
-                minifyJS: true,
-                minifyURLs: true,
-            })
-        );
-    });
+    fs.readdirSync("./groups").forEach((item) =>
+        convertGroupDeep(path.join("./groups", item))
+    );
 
     // Chats
     if (!fs.existsSync("./chats")) {

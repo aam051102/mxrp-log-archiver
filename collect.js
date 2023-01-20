@@ -10,8 +10,9 @@ const fails = [];
  */
 let maxChunkPageCount;
 
-const fetchChatData = async (url, pages) => {
-    let sections = [];
+const fetchChatData = async (chatId, pages) => {
+    const url = `https://mxrp.chat/${chatId}/log`;
+
     let pageData = [];
     let previousPageChunk = pages;
     let currentPageChunk = pages;
@@ -34,11 +35,11 @@ const fetchChatData = async (url, pages) => {
                 const content = convoWrapper.html();
 
                 if (previousPageChunk - currentPageChunk >= maxChunkPageCount) {
-                    sections.push({
-                        from: currentPageChunk,
-                        to: previousPageChunk,
-                        pages: pageData,
-                    });
+                    fs.writeFileSync(
+                        `./chats/${chatId}/${currentPageChunk}-${previousPageChunk}.json`,
+                        JSON.stringify(pageData)
+                    );
+
                     pageData = [];
                     previousPageChunk = currentPageChunk;
                 }
@@ -50,17 +51,16 @@ const fetchChatData = async (url, pages) => {
     }
 
     if (pageData.length) {
-        sections.push({
-            from: currentPageChunk,
-            to: previousPageChunk,
-            pages: pageData,
-        });
+        fs.writeFileSync(
+            `./chats/${chatId}/${currentPageChunk}-${previousPageChunk}.json`,
+            JSON.stringify(pageData)
+        );
     }
-
-    return sections;
 };
 
-const fetchGroupData = async (url) => {
+const fetchGroupData = async (groupId) => {
+    const url = `https://mxrp.chat/${groupId}/log`;
+
     let pageData = [];
 
     let prevPage = url;
@@ -96,13 +96,6 @@ const fetchGroupData = async (url) => {
 };
 
 (async () => {
-    // Settings
-    const settings = fs.existsSync("./settings.json")
-        ? JSON.parse(fs.readFileSync("./settings.json"))
-        : {};
-    maxChunkPageCount = settings.maxChunkPageCount ?? 250;
-
-    // Loading
     if (!fs.existsSync("./input.json")) {
         console.error("MXRP Collector", '"input.json" does not exist.');
 
@@ -117,35 +110,35 @@ const fetchGroupData = async (url) => {
 
     const input = JSON.parse(fs.readFileSync("./input.json").toString());
 
+    maxChunkPageCount = input.maxChunkPageCount ?? 250;
+
     // Chats
     const chats = input.chats;
     for (let i = 0; i < chats.length; i++) {
-        if (!fs.existsSync(`./chats/${chats[i].id}.json`)) {
-            const sections = await fetchChatData(
-                `https://mxrp.chat/${chats[i].id}/log`,
-                chats[i].pages
-            );
-
+        if (!fs.existsSync(`./chats/${chats[i].id}`)) {
             fs.mkdirSync(`./chats/${chats[i].id}`);
 
-            for (let j = 0, l = sections.length; j < l; j++) {
-                fs.writeFileSync(
-                    `./chats/${chats[i].id}/${j}_${sections[j].from}-${sections[j].to}.json`,
-                    JSON.stringify(sections[j])
-                );
-            }
+            await fetchChatData(chats[i].id, chats[i].pages);
         }
     }
 
     // Groups
     const groups = input.groups;
     for (let i = 0; i < groups.length; i++) {
-        if (!fs.existsSync(`./groups/${groups[i]}.json`)) {
-            const data = await fetchGroupData(
-                `https://mxrp.chat/${groups[i]}/log`
-            );
-            if (data.length > 0) {
-                fs.writeFileSync(`./groups/${groups[i]}.json`, data.join(""));
+        if (!fs.existsSync(`./groups/${groups[i]}`)) {
+            const data = await fetchGroupData(groups[i]);
+
+            let from = 0;
+            let to = Math.min(data.length, from + maxChunkPageCount);
+
+            while (from !== to) {
+                fs.writeFileSync(
+                    `./groups/${groups[i]}/${from}-${to}.json`,
+                    JSON.stringify({ pages: data.slice(from, to), from, to })
+                );
+
+                from = Math.min(data.length, from + maxChunkPageCount);
+                to = Math.min(data.length, from + maxChunkPageCount);
             }
         }
     }
