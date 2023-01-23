@@ -1,6 +1,6 @@
 {
     "name": "mxrp-log-archiver",
-    "version": "1.1.0",
+    "version": "1.1.2",
     "description": "An app which downloads and builds pages of old MXRP group chats",
     "main": "index.js",
     "scripts": {
