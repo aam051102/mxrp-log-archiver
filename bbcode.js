@@ -6,9 +6,11 @@ var tag_properties = {
     bshadow: "box-shadow",
     tshadow: "text-shadow",
 };
+
 function bbencode(text, admin) {
     return raw_bbencode(text, admin);
 }
+
 function raw_bbencode(text, admin) {
     // convert BBCode inside [raw] to html escapes to prevent stacking problems and make it show with BBcode disabled
     var re = /\[raw\]([\s\S]*?)\[([\s\S]*?)\]([\s\S]*?)\[\/raw\]/gi;
@@ -22,6 +24,10 @@ function raw_bbencode(text, admin) {
         /(https?:\/\/\S+)|\[([A-Za-z]+)(?:=([^\]]+))?\]([\s\S]*?)\[\/\2\]/gi,
         function (str, url, tag, attribute, content) {
             if (url) {
+                if (url.includes("<")) {
+                    return url;
+                }
+
                 var suffix = "";
                 // Exclude a trailing closing bracket if there isn't an opening bracket.
                 if (url[url.length - 1] == ")" && url.indexOf("(") == -1) {
@@ -32,9 +38,7 @@ function raw_bbencode(text, admin) {
                     .replace(/&amp;/g, "&")
                     .replace(/&quot;/g, '"')
                     .replace(/&#x27;/g, "'"); // re-escape to work with links
-                return `<a href="/redirect?url=${encodeURIComponent(
-                    url
-                )}" target="_blank">${url}</a>${suffix}`;
+                return `<a href="${url}" target="_blank">${url}</a>${suffix}`;
             }
             tag = tag.toLowerCase();
             if (attribute) {
@@ -48,6 +52,8 @@ function raw_bbencode(text, admin) {
                             admin
                         )}</span>`;
                     case "font":
+                        attribute = attribute.replace(/"/g, "");
+
                         // Gotta quote the font name so fonts starting with numbers work.
                         return `<span style="${
                             tag_properties[tag]
@@ -74,9 +80,7 @@ function raw_bbencode(text, admin) {
                                 .replace(/&amp;/g, "&")
                                 .replace(/&quot;/g, '"')
                                 .replace(/&#x27;/g, "'"); // re-escape to work with links
-                            return `<a href="/redirect?url=${encodeURIComponent(
-                                attribute
-                            )}" target="_blank">${raw_bbencode(
+                            return `<a href="${attribute}" target="_blank">${raw_bbencode(
                                 content,
                                 admin
                             )}</a>`;
