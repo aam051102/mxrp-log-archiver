@@ -244,7 +244,7 @@ try {
     );
 } catch (e) {
     console.error(e);
-    fs.writeFileSync(`./log-${new Date().getTime()}.txt`, e.toString());
+    fs.writeFileSync(`./builder_log-${new Date().getTime()}.txt`, e.toString());
 }
 
 process.stdin.once("data", function () {

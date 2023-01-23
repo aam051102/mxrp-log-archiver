@@ -104,70 +104,78 @@ const fetchGroupData = async (groupId) => {
 };
 
 (async () => {
-    if (!fs.existsSync("./input.json")) {
-        console.error("MXRP Collector", '"input.json" does not exist.');
+    try {
+        if (!fs.existsSync("./input.json")) {
+            console.error("MXRP Collector", '"input.json" does not exist.');
 
-        process.stdin.once("data", function () {
-            process.exit(1);
-        });
-        return;
-    }
-
-    fs.mkdirSync("./chats", { recursive: true });
-    fs.mkdirSync("./groups", { recursive: true });
-
-    const input = JSON.parse(fs.readFileSync("./input.json").toString());
-
-    maxChunkPageCount = input.maxChunkPageCount ?? 250;
-
-    // Chats
-    const chats = input.chats;
-    for (let i = 0; i < chats.length; i++) {
-        if (!fs.existsSync(`./chats/${chats[i].id}`)) {
-            fs.mkdirSync(`./chats/${chats[i].id}`);
-
-            await fetchChatData(chats[i].id, chats[i].pages);
+            process.stdin.once("data", function () {
+                process.exit(1);
+            });
+            return;
         }
-    }
 
-    // Groups
-    const groups = input.groups;
-    for (let i = 0; i < groups.length; i++) {
-        if (!fs.existsSync(`./groups/${groups[i]}`)) {
-            fs.mkdirSync(`./groups/${groups[i]}`, { recursive: true });
+        fs.mkdirSync("./chats", { recursive: true });
+        fs.mkdirSync("./groups", { recursive: true });
 
-            const data = await fetchGroupData(groups[i]);
+        const input = JSON.parse(fs.readFileSync("./input.json").toString());
 
-            let from = 0;
-            let to = Math.min(data.length - 1, from + maxChunkPageCount);
+        maxChunkPageCount = input.maxChunkPageCount ?? 250;
 
-            while (from !== to) {
-                fs.writeFileSync(
-                    `./groups/${groups[i]}/${from}-${to}.json`,
-                    JSON.stringify({
-                        pages: data.slice(from, to),
-                        from,
-                        to,
-                    })
-                );
+        // Chats
+        const chats = input.chats ?? [];
+        for (let i = 0; i < chats.length; i++) {
+            if (!fs.existsSync(`./chats/${chats[i].id}`)) {
+                fs.mkdirSync(`./chats/${chats[i].id}`);
 
-                from = Math.min(data.length, from + maxChunkPageCount);
-                to = Math.min(data.length, from + maxChunkPageCount);
+                await fetchChatData(chats[i].id, chats[i].pages);
             }
         }
+
+        // Groups
+        const groups = input.groups ?? [];
+        for (let i = 0; i < groups.length; i++) {
+            if (!fs.existsSync(`./groups/${groups[i]}`)) {
+                fs.mkdirSync(`./groups/${groups[i]}`, { recursive: true });
+
+                const data = await fetchGroupData(groups[i]);
+
+                let from = 0;
+                let to = Math.min(data.length - 1, from + maxChunkPageCount);
+
+                while (from !== to) {
+                    fs.writeFileSync(
+                        `./groups/${groups[i]}/${from}-${to}.json`,
+                        JSON.stringify({
+                            pages: data.slice(from, to),
+                            from,
+                            to,
+                        })
+                    );
+
+                    from = Math.min(data.length, from + maxChunkPageCount);
+                    to = Math.min(data.length, from + maxChunkPageCount);
+                }
+            }
+        }
+
+        // Log fails
+        if (fails.length) console.log("ERRORS DURING LOGGING:");
+        fails.forEach((url) => {
+            console.error(`- ${url}`);
+        });
+
+        console.log(
+            '\nSuccessfully ran MXRP Collector. Check "chats" and "groups" directory to see the downloaded content. To convert them to a readable format, run the MXRP Builder from the same directory that you ran the MXRP Collector.'
+        );
+
+        process.stdin.once("data", function () {
+            process.exit(0);
+        });
+    } catch (e) {
+        console.error(e);
+        fs.writeFileSync(
+            `./collector_log-${new Date().getTime()}.txt`,
+            e.toString()
+        );
     }
-
-    // Log fails
-    if (fails.length) console.log("ERRORS DURING LOGGING:");
-    fails.forEach((url) => {
-        console.error(`- ${url}`);
-    });
-
-    console.log(
-        '\nSuccessfully ran MXRP Collector. Check "chats" and "groups" directory to see the downloaded content. To convert them to a readable format, run the MXRP Builder from the same directory that you ran the MXRP Collector.'
-    );
-
-    process.stdin.once("data", function () {
-        process.exit(0);
-    });
 })();
